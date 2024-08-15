@@ -12,4 +12,4 @@ $cmd = ".\thermostat.exe"
 if ($process -eq "true") {
     $cmd = "Start-Process -FilePath $cmd"
 }
-& $cmd
+Invoke-Expression $cmd
