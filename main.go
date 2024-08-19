@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"math/rand"
 	"os"
 	"time"
@@ -64,7 +65,7 @@ func (tl *ThermostatList) DeepCopyObject() runtime.Object {
 	}
 }
 
-// ThermostatReconciler reconciles a Thermostat object
+// ThermostatReconciler reconciles a Thermostat Custom Resource
 type ThermostatReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -77,8 +78,30 @@ func (r *ThermostatReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	thermostat := &Thermostat{}
 	err := r.Get(ctx, req.NamespacedName, thermostat)
 	if err != nil {
+		if client.IgnoreNotFound(err) == nil {
+			log.Info("Thermostat CR not found, assuming it has been deleted")
+
+			// Check if any Thermostat resources exist
+			var thermostatList ThermostatList
+			if listErr := r.List(ctx, &thermostatList); listErr != nil {
+				log.Error(listErr, "unable to list Thermostat resources")
+				return ctrl.Result{}, listErr
+			}
+			if len(thermostatList.Items) == 0 {
+				log.Info("No Thermostat resources left, shutting down the reconciler")
+				// Trigger a shutdown signal
+				go func() {
+					log.Info("Shutting down manager")
+					// Allow time for logs to flush
+					time.Sleep(2 * time.Second)
+					os.Exit(0)
+				}()
+			}
+
+			return ctrl.Result{}, nil
+		}
 		log.Error(err, "unable to fetch Thermostat")
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return ctrl.Result{}, err
 	}
 
 	// Business logic: adjust the current temperature
@@ -87,13 +110,24 @@ func (r *ThermostatReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	} else if thermostat.Spec.CurrentTemperature > thermostat.Spec.DesiredTemperature {
 		thermostat.Spec.CurrentTemperature--
 	} else {
-		log.Info("current temperature is equal to desired temperature", "currentTemperature", thermostat.Spec.CurrentTemperature, "desiredTemperature", thermostat.Spec.DesiredTemperature)
+		// todo delete CR
+		log.Info(fmt.Sprintf(
+			"current temperature is equal to desired temperature, current Temp: %d, desiredTemp: %d",
+			thermostat.Spec.CurrentTemperature,
+			thermostat.Spec.DesiredTemperature,
+		))
+		log.Info("deleting Thermostat")
+		r.Delete(ctx, thermostat)
 		time.Sleep(time.Second)
 		return ctrl.Result{}, nil
 	}
 
 	// Update the Thermostat status
-	log.Info("updating thermostat with new current temperature", "currentTemperature", thermostat.Spec.CurrentTemperature, "generation", thermostat.GetGeneration())
+	log.Info(fmt.Sprintf(
+		"updating thermostat with new current temperature, currentTemp: %d, desiredTemp: %d",
+		thermostat.Spec.CurrentTemperature,
+		thermostat.Spec.DesiredTemperature,
+	))
 	err = r.Update(ctx, thermostat)
 	if err != nil {
 		log.Error(err, "unable to update Thermostat")
@@ -130,11 +164,11 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Thermostat")
+		setupLog.Error(err, "unable to create thermostat controller")
 		os.Exit(1)
 	}
 
-	for i := 1; i <= 4; i++ {
+	for i := 1; i <= 1; i++ {
 		createCR(mgr)
 		time.Sleep(time.Second * 2)
 	}
@@ -163,24 +197,30 @@ func init() {
 
 func createCR(mgr manager.Manager) {
 	// Create the Thermostat CR
-	setupLog.Info("Create the Thermostat CR")
+	name := "my-thermostat" + time.Now().Format("20060102150405")
+	desiredTemp := 70
+	// random int from 50 to 70
+	currentTemp := rand.Intn(41) + 50
+
+	setupLog.Info(fmt.Sprintf("Create the Thermostat CR '%s' with Desired Temp %d and Current Temp %d", name, desiredTemp, currentTemp))
+
 	thermostat := &Thermostat{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Thermostat",
 			APIVersion: "thermostats.example.com/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-thermostat" + time.Now().Format("20060102150405"),
+			Name:      name,
 			Namespace: "default",
 		},
 		Spec: ThermostatSpec{
-			DesiredTemperature: 70 + rand.Intn(201) - 100,
-			CurrentTemperature: 70,
+			DesiredTemperature: desiredTemp,
+			CurrentTemperature: currentTemp,
 		},
 	}
 
 	if err := mgr.GetClient().Create(context.Background(), thermostat); err != nil {
-		setupLog.Error(err, "unable to create Thermostat CR")
+		setupLog.Error(err, fmt.Sprintf("unable to create Thermostat CR %s", name))
 		os.Exit(1)
 	}
 }

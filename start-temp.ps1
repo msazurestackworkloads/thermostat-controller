@@ -1,7 +1,10 @@
 # param to run as process or exe
-param([string]$process = "false")
+param(
+    [string]$process = "false",
+    [string]$build = "true"
+)
 
-if (-not (Test-Path .\thermostat.exe)) {
+if ($build -eq "true") {
     Write-Host "Building thermostat controller"
     go mod download
     go build -o thermostat.exe -v
