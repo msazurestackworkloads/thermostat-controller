@@ -1,4 +1,4 @@
-# param to run as process or exe
+# param to run as process or exe and to build or just run
 param(
     [string]$process = "false",
     [string]$build = "true"
