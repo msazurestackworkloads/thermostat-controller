@@ -1,7 +1,6 @@
-# param to run as process or exe and to build or just run
 param(
-    [string]$runasprocess = "false",
-    [string]$buildexe = "true"
+    [string]$RunAsProcess = "false",
+    [string]$BuildExe = "true"
 )
 
 if ($build -eq "true") {
