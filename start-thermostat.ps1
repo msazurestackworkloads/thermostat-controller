@@ -10,7 +10,7 @@ if ($BuildExe -eq "true") {
 }
 
 Write-Host "Running thermostat controller"
-$cmd = "$BuildPath\thermostat.exe"
+$cmd = ".\thermostat.exe"
 if ($RunAsProcess -eq "true") {
     $cmd = "Start-Process -FilePath $cmd"
 }
