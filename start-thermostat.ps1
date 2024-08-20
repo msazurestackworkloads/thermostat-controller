@@ -14,5 +14,5 @@ $cmd = ".\thermostat.exe"
 if ($RunAsProcess -eq "true") {
     $cmd = "Start-Process -FilePath $cmd"
 }
-Invoke-Expression $cmd
-exit $?
+& $cmd
+exit !$?
