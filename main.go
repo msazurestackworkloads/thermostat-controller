@@ -27,6 +27,8 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+const numThermostats = 4
+
 // ThermostatSpec defines the desired state of Thermostat
 type ThermostatSpec struct {
 	DesiredTemperature int `json:"desiredTemperature"`
@@ -168,7 +170,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	for i := 1; i <= 1; i++ {
+	for i := 1; i <= numThermostats; i++ {
 		createCR(mgr)
 		time.Sleep(time.Second * 2)
 	}
