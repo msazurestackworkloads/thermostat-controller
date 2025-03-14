@@ -5,8 +5,8 @@ param(
 
 if ($BuildExe -eq "true") {
     Write-Host "Building thermostat controller"
-    go1.22.5 mod download
-    go1.22.5 build -o thermostat.exe
+    go1.24.0 mod download
+    go1.24.0 build -o thermostat.exe
 }
 
 Write-Host "Running thermostat controller"
