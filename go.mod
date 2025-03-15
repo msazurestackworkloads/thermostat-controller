@@ -1,6 +1,6 @@
 module thermostat-controller
 
-go 1.24.0
+go 1.24.1
 
 require (
 	k8s.io/apimachinery v0.30.3
