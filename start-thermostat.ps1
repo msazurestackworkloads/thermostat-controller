@@ -3,10 +3,12 @@ param(
     [bool] $BuildExe = $true
 )
 
+$goversion = "1.25.5"
+
 if ($BuildExe) {
     Write-Host "Building thermostat controller"
-    go1.24.1 mod download
-    go1.24.1 build -o thermostat.exe
+    & "go$goversion" mod download
+    & "go$goversion" build -o thermostat.exe
 }
 
 Write-Host "Running thermostat controller"
