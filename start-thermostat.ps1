@@ -1,20 +1,31 @@
 param(
     [bool] $RunAsProcess = $false,
-    [bool] $BuildExe = $true
+    [bool] $BuildExe = $true,
+    [string] $GoCommand = "go"
 )
 
-$goversion = "1.25.5"
+$ErrorActionPreference = "Stop"
+$exePath = Join-Path $PSScriptRoot "thermostat.exe"
 
 if ($BuildExe) {
     Write-Host "Building thermostat controller"
-    & "go$goversion" mod download
-    & "go$goversion" build -o thermostat.exe
+    & $GoCommand -C $PSScriptRoot build -mod=readonly -o $exePath .
+    if ($LASTEXITCODE -ne 0) {
+        throw "Building thermostat controller failed with exit code $LASTEXITCODE."
+    }
 }
 
 Write-Host "Running thermostat controller"
-$cmd = ".\thermostat.exe"
 if ($RunAsProcess) {
-    $cmd = "Start-Process -FilePath $cmd"
+    Start-Process -FilePath $exePath -WorkingDirectory $PSScriptRoot -PassThru
+} else {
+    Push-Location $PSScriptRoot
+    try {
+        & $exePath
+        if ($LASTEXITCODE -ne 0) {
+            throw "Thermostat controller failed with exit code $LASTEXITCODE."
+        }
+    } finally {
+        Pop-Location
+    }
 }
-& $cmd
-exit !$?

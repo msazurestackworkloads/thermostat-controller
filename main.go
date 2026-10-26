@@ -60,11 +60,16 @@ func (t *Thermostat) DeepCopyObject() runtime.Object {
 
 func (tl *ThermostatList) GetObjectKind() schema.ObjectKind { return &tl.TypeMeta }
 func (tl *ThermostatList) DeepCopyObject() runtime.Object {
-	return &ThermostatList{
-		TypeMeta: tl.TypeMeta,
-		ListMeta: *tl.ListMeta.DeepCopy(),
-		Items:    append([]Thermostat(nil), tl.Items...),
+	result := *tl
+	result.ListMeta = *tl.ListMeta.DeepCopy()
+	if tl.Items != nil {
+		result.Items = make([]Thermostat, len(tl.Items))
+		for i := range tl.Items {
+			result.Items[i] = tl.Items[i]
+			result.Items[i].ObjectMeta = *tl.Items[i].ObjectMeta.DeepCopy()
+		}
 	}
+	return &result
 }
 
 // ThermostatReconciler reconciles a Thermostat Custom Resource
@@ -119,7 +124,10 @@ func (r *ThermostatReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			thermostat.Spec.DesiredTemperature,
 		))
 		log.Info("deleting Thermostat")
-		r.Delete(ctx, thermostat)
+		if err := r.Delete(ctx, thermostat); err != nil {
+			log.Error(err, "unable to delete Thermostat")
+			return ctrl.Result{}, err
+		}
 		time.Sleep(time.Second)
 		return ctrl.Result{}, nil
 	}
@@ -145,6 +153,7 @@ func main() {
 	var apiServerURL, kubeconfigPath string
 	flag.StringVar(&apiServerURL, "api-server-url", "http://127.0.0.1:20888", "The address of the Kubernetes API server")
 	flag.StringVar(&kubeconfigPath, "kube-config-path", "./kubeconfig.yaml", "The path to the kubeconfig file")
+	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
